@@ -47,20 +47,16 @@ def inicializar_base_conocimientos(archivos, api_key):
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=300)
     chunks = text_splitter.split_documents(todos_los_documentos)
-
-    if not chunks:
+    
+if not chunks:
         return None
 
     embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-2-preview")
-    vector_store = FAISS.from_documents([chunks[0]], embeddings)
     
-    for chunk in chunks[1:]:
-        time.sleep(1.2)
-        vector_store.add_documents([chunk])
+    # Procesamos todos los fragmentos juntos en una sola petición para no saturar la clave gratuita
+    vector_store = FAISS.from_documents(chunks, embeddings)
         
-    return vector_store
-
-if gemini_api_key:
+    return vector_storeif gemini_api_key:
     vector_store = inicializar_base_conocimientos(ARCHIVOS_DOCUMENTOS, gemini_api_key)
     
     if vector_store:
