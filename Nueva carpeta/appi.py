@@ -11,10 +11,13 @@ st.set_page_config(page_title="Asistente Virtual - ANDINA TRAX", page_icon="🤖
 st.title("📚 Consultor de Documentación ANDINA TRAX (Gemini)")
 st.write("Haz preguntas sobre los módulos de capacitación. Las respuestas se basarán **únicamente** en los archivos provistos.")
 
-# Lista de tus archivos específicos
+# Obtener la ruta exacta de la carpeta actual de forma dinámica
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Lista de tus archivos con los nombres exactos de tu GitHub
 ARCHIVOS_DOCUMENTOS = [
-    "ANDINA TRAX SPM - Mod. de Capacitación - JUNIO 2026.pdf",
-    "ANDINA TRAX Auto-Alma-Maxikiosco - Mod. de Capacitacion - JUNIO 2026.pdf"
+    os.path.join(BASE_DIR, "ANDINA TRAX SPM-Mod. de Capacitación - JUNIO 2026.pdf"),
+    os.path.join(BASE_DIR, "ANDINA TRAX Auto-Alma-Maxikiosco - Mod. de Capacitación - JUNIO 2026.pdf")
 ]
 
 # Barra lateral
@@ -25,7 +28,6 @@ with st.sidebar:
 
 @st.cache_resource(show_spinner="Digitalizando manuales por goteo seguro (evitando límites de Google)...")
 def inicializar_base_conocimientos(archivos, api_key):
-    """Carga los PDFs, crea bloques grandes y los indexa uno a uno con pausas estratégicas."""
     if not api_key:
         return None
     
@@ -38,12 +40,11 @@ def inicializar_base_conocimientos(archivos, api_key):
             paginas = loader.load()
             todos_los_documentos.extend(paginas)
         else:
-            st.warning(f"Archivo no encontrado: {archivo}")
+            st.warning(f"Archivo no encontrado: {os.path.basename(archivo)}")
             
     if not todos_los_documentos:
         return None
 
-    # Fragmentos optimizados para reducir peticiones
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=300)
     chunks = text_splitter.split_documents(todos_los_documentos)
 
@@ -51,8 +52,6 @@ def inicializar_base_conocimientos(archivos, api_key):
         return None
 
     embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-2-preview")
-    
-    # Inicialización e indexación por goteo seguro
     vector_store = FAISS.from_documents([chunks[0]], embeddings)
     
     for chunk in chunks[1:]:
@@ -61,23 +60,19 @@ def inicializar_base_conocimientos(archivos, api_key):
         
     return vector_store
 
-# Verificar la API Key
 if gemini_api_key:
     vector_store = inicializar_base_conocimientos(ARCHIVOS_DOCUMENTOS, gemini_api_key)
     
     if vector_store:
-        # CEREBRO ACTUALIZADO AQUÍ: Se cambió a gemini-2.5-flash
         llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
         
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
-        # Historial de mensajes
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
 
-        # Entrada del usuario
         if user_question := st.chat_input("¿Qué deseas saber sobre ANDINA TRAX?"):
             st.session_state.messages.append({"role": "user", "content": user_question})
             with st.chat_message("user"):
@@ -85,13 +80,9 @@ if gemini_api_key:
 
             with st.chat_message("assistant"):
                 with st.spinner("Buscando en los manuales..."):
-                    # 1. Buscar las páginas más relevantes en los PDFs
                     docs_relevantes = vector_store.similarity_search(user_question, k=4)
-                    
-                    # 2. Unir el texto de los manuales
                     contexto = "\n\n".join([doc.page_content for doc in docs_relevantes])
                     
-                    # 3. Crear las instrucciones súper estrictas
                     instrucciones = (
                         "Eres un asistente experto en los módulos de capacitación de ANDINA TRAX.\n"
                         "Tu tarea es responder las preguntas utilizando ÚNICAMENTE el contexto de abajo.\n"
@@ -103,17 +94,15 @@ if gemini_api_key:
                         f"PREGUNTA DEL USUARIO: {user_question}"
                     )
                     
-                    # 4. Obtener respuesta de Gemini
                     response = llm.invoke(instrucciones)
                     respuesta_final = response.content
                     
                     st.write(respuesta_final)
                     st.session_state.messages.append({"role": "assistant", "content": respuesta_final})
                     
-                    # Mostrar las fuentes de donde sacó la respuesta
                     with st.expander("Ver fuentes consultadas en el documento"):
                         for doc in docs_relevantes:
-                            origen = doc.metadata.get('source', 'Desconocido')
+                            origen = os.path.basename(doc.metadata.get('source', 'Desconocido'))
                             pagina = doc.metadata.get('page', 0) + 1
                             st.write(f"• **Doc:** {origen} | **Página:** {pagina}")
     else:
