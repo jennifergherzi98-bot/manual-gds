@@ -56,7 +56,9 @@ if not chunks:
     # Procesamos todos los fragmentos juntos en una sola petición para no saturar la clave gratuita
     vector_store = FAISS.from_documents(chunks, embeddings)
         
-    return vector_storeif gemini_api_key:
+    return vector_store
+
+if gemini_api_key:
     vector_store = inicializar_base_conocimientos(ARCHIVOS_DOCUMENTOS, gemini_api_key)
     
     if vector_store:
