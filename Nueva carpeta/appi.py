@@ -51,8 +51,8 @@ def inicializar_base_conocimientos(archivos, api_key):
     if not chunks:
         return None
 
-    # Cambiamos al modelo de embeddings oficial, estable y optimizado de Google
-    embeddings = GoogleGenerativeAIEmbeddings(model="text-embedding-004")
+    # Cambiamos al nuevo modelo oficial y estable de Google
+    embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-001")
     
     try:
         # Inicializamos el contenedor con los primeros 5 fragmentos
