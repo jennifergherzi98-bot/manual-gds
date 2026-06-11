@@ -26,7 +26,7 @@ with st.sidebar:
     gemini_api_key = st.text_input("Introduce tu Gemini API Key:", type="password")
     st.info("Este código procesará los manuales adjuntos de forma 100% gratuita usando Google Gemini.")
 
-@st.cache_resource(show_spinner="Digitalizando manuales en un solo paquete seguro...")
+@st.cache_resource(show_spinner="Digitalizando manuales en bloques seguros para tu clave gratuita...")
 def inicializar_base_conocimientos(archivos, api_key):
     if not api_key:
         return None
@@ -51,13 +51,30 @@ def inicializar_base_conocimientos(archivos, api_key):
     if not chunks:
         return None
 
-    # Inicialización del modelo de embeddings de Gemini
-    embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-2-preview")
+    # Cambiamos al modelo de embeddings oficial, estable y optimizado de Google
+    embeddings = GoogleGenerativeAIEmbeddings(model="text-embedding-004")
     
-    # Procesamos todos los fragmentos juntos en una sola petición para no saturar la clave gratuita
-    vector_store = FAISS.from_documents(chunks, embeddings)
+    try:
+        # Inicializamos el contenedor con los primeros 5 fragmentos
+        batch_size = 5
+        primer_batch = chunks[:batch_size]
+        vector_store = FAISS.from_documents(primer_batch, embeddings)
         
-    return vector_store
+        # Marcador visual para monitorear la carga en la pantalla
+        estado_carga = st.empty()
+        
+        # Enviamos el resto en tandas de 5 fragmentos, esperando 5 segundos entre cada una
+        for i in range(batch_size, len(chunks), batch_size):
+            estado_carga.text(f"⏳ Procesando fragmentos {i} de {len(chunks)}...")
+            time.sleep(5.0)  # Pausa estratégica para cumplir con el límite de la API gratuita
+            batch = chunks[i:i+batch_size]
+            vector_store.add_documents(batch)
+            
+        estado_carga.empty()
+        return vector_store
+    except Exception as e:
+        st.error(f"Error de procesamiento con Google Gemini: {e}")
+        return None
 
 # --- CONTROL DEL FLUJO PRINCIPAL ---
 if gemini_api_key:
