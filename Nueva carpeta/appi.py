@@ -26,7 +26,7 @@ with st.sidebar:
     gemini_api_key = st.text_input("Introduce tu Gemini API Key:", type="password")
     st.info("Este código procesará los manuales adjuntos de forma 100% gratuita usando Google Gemini.")
 
-@st.cache_resource(show_spinner="Digitalizando manuales por goteo seguro (evitando límites de Google)...")
+@st.cache_resource(show_spinner="Digitalizando manuales en un solo paquete seguro...")
 def inicializar_base_conocimientos(archivos, api_key):
     if not api_key:
         return None
@@ -48,9 +48,10 @@ def inicializar_base_conocimientos(archivos, api_key):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=300)
     chunks = text_splitter.split_documents(todos_los_documentos)
     
-if not chunks:
+    if not chunks:
         return None
 
+    # Inicialización del modelo de embeddings de Gemini
     embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-2-preview")
     
     # Procesamos todos los fragmentos juntos en una sola petición para no saturar la clave gratuita
@@ -58,8 +59,11 @@ if not chunks:
         
     return vector_store
 
+# --- CONTROL DEL FLUJO PRINCIPAL ---
 if gemini_api_key:
-    vector_store = inicializar_base_conocimientos(ARCHIVOS_DOCUMENTOS, gemini_api_key)
+    # Quitamos espacios accidentales que se puedan colar al pegar la clave
+    api_key_limpia = gemini_api_key.strip()
+    vector_store = inicializar_base_conocimientos(ARCHIVOS_DOCUMENTOS, api_key_limpia)
     
     if vector_store:
         llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
